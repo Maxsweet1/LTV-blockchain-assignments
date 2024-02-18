@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+
+contract SnackClubNFT is ERC1155, Ownable {
+    using Strings for uint256;
+
+    uint256 public constant ADAMANTIUM = 1;
+    uint256 public constant VIBRANIUM = 2;
+    uint256 public constant DRAGONITE = 3;
+
+    mapping(uint256 => uint256) private _tierPrices;
+
+    constructor(string memory baseURI) ERC1155(baseURI) Ownable(msg.sender) {
+        _tierPrices[ADAMANTIUM] = 0.1 ether;
+        _tierPrices[VIBRANIUM] = 0.2 ether;
+        _tierPrices[DRAGONITE] = 0.3 ether;
+    }
+
+    function mintMembership(uint256 tier, uint256 amount) public payable {
+        require(_tierPrices[tier] != 0, "Tier does not exist");
+        require(msg.value >= _tierPrices[tier] * amount, "Incorrect value sent");
+        _mint(msg.sender, tier, amount, "");
+    }
+
+    function setTierPrice(uint256 tier, uint256 price) public onlyOwner {
+        _tierPrices[tier] = price;
+    }
+
+    function getTierPrice(uint256 tier) public view returns (uint256) {
+        return _tierPrices[tier];
+    }
+
+    function setBaseURI(string memory newBaseURI) public onlyOwner {
+        _setURI(newBaseURI);
+    }
+
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        return string(abi.encodePacked(super.uri(tokenId), tokenId.toString()));
+    }
+
+    function withdraw() public onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No funds to withdraw");
+        (bool success, ) = payable(owner()).call{value: balance}("");
+        require(success, "Withdrawal failed");
+    }
+}
